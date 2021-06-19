@@ -500,30 +500,7 @@ public class Firebase extends Extension {
     }
 
 
-    public static boolean showInterstitial() {
-        Log.d("Firebase","Show Interstitial: Begins");
-        if(loadingInterstitial) return false;
-        if(failInterstitial){
-            // mainActivity.runOnUiThread(new Runnable() {
-            //     public void run() { getInstance().reloadInterstitial();}
-            // }); 
-            getInstance().reloadInterstitial();
-            Log.d(TAG,"Show Interstitial: Interstitial not loaded... reloading.");
-            return false;
-        }
 
-        if(interstitialId==null) {
-            Log.d(TAG,"Show Interstitial: InterstitialID is empty... ignoring.");
-            return false;
-        }
-        mainActivity.runOnUiThread(new Runnable() {
-            public void run() { 
-                getInstance().interstitial.show(mainActivity);
-            }
-        });
-        Log.d(TAG,"Show Interstitial: Compelte.");
-        return true;
-    }
 
 
     public static void showBanner() {
@@ -611,6 +588,36 @@ public class Firebase extends Extension {
         reloadBanner();
     }
 
+    public static boolean showInterstitial() {
+        Log.d("Firebase","Show Interstitial: Begins");
+        if(loadingInterstitial) return false;
+        if(failInterstitial){
+            // mainActivity.runOnUiThread(new Runnable() {
+            //     public void run() { getInstance().reloadInterstitial();}
+            // }); 
+            getInstance().reloadInterstitial();
+            Log.d(TAG,"Show Interstitial: Interstitial not loaded... reloading.");
+            return false;
+        }
+
+        if(interstitialId==null) {
+            Log.d(TAG,"Show Interstitial: InterstitialID is empty... ignoring.");
+            return false;
+        }
+
+        if (Firebase.getInstance().interstitial != null ){
+            mainActivity.runOnUiThread(new Runnable() {
+                public void run() { 
+                    getInstance().interstitial.show(mainActivity);
+                }
+            });
+            getInstance().reloadInterstitial();
+            Log.d(TAG,"Show Interstitial: Compelte.");
+        }
+        
+        return true;
+    }
+
     public void reloadInterstitial(){
         if(interstitialId==null) return;
         if(loadingInterstitial) return;
@@ -624,6 +631,7 @@ public class Firebase extends Extension {
                  @Override
                  public void onAdLoaded(@NonNull InterstitialAd ad) {
                     Firebase.getInstance().loadingInterstitial=false;
+                    Firebase.getInstance().failInterstitial=false;
                     reportInterstitialEvent(Firebase.LOADED);
                     Log.d(TAG,"Received Interstitial!");
                     interstitial = ad;
@@ -634,6 +642,7 @@ public class Firebase extends Extension {
                     Firebase.getInstance().loadingInterstitial=false;    
                     Firebase.getInstance().failInterstitial=true;
                     reportInterstitialEvent(Firebase.FAILED);
+                    interstitial = null;
                     Log.d(TAG,"Fail to get Interstitial: "+adError.toString());
                  }
              });
