@@ -316,7 +316,7 @@ public class Firebase extends Extension {
         // if (interstitial != null ) {
         //     interstitial.setAdListener(null);
         // }
-        
+        rewardedAd = null;
         interstitial=null;
 
         if (banner != null)
@@ -391,35 +391,6 @@ public class Firebase extends Extension {
     }
 
     private void initInterstitial() {
-        
-        // interstitial = new InterstitialAd(mainActivity);
-        // interstitial.setAdUnitId(interstitialId);
-        // interstitial.setAdListener(new AdListener() {
-        //     public void onAdLoaded() {
-        //         Firebase.getInstance().loadingInterstitial=false;
-        //         reportInterstitialEvent(Firebase.LOADED);
-        //         Log.d(TAG,"Received Interstitial!");
-        //     }
-        //     public void onAdFailedToLoad(int errorcode) {
-        //         Firebase.getInstance().loadingInterstitial=false;    
-        //         Firebase.getInstance().failInterstitial=true;
-        //         reportInterstitialEvent(Firebase.FAILED);
-        //         Log.d(TAG,"Fail to get Interstitial: "+errorcode);
-        //     }
-        //     public void onAdClosed() {
-        //         Firebase.getInstance().reloadInterstitial();
-        //         reportInterstitialEvent(Firebase.CLOSED);
-        //         Log.d(TAG,"Dismiss Interstitial");
-        //     }
-        //     public void onAdOpened() {
-        //         reportInterstitialEvent(Firebase.DISPLAYING);
-        //         Log.d(TAG,"Displaying Interstitial");
-        //     }
-        //     public void onAdLeftApplication() {
-        //         reportInterstitialEvent(Firebase.LEAVING);
-        //         Log.d(TAG,"User clicked on Interstitial, leaving app");
-        //     }
-        // });
         reloadInterstitial();
 
         Log.d(TAG, "Firebase.java: init Interstitial admob ");
@@ -455,10 +426,13 @@ public class Firebase extends Extension {
                             requestConfigurationBuilder.setTestDeviceIds(devicesIds);
 
                         }
+
+                
                 if(tagForChildDirectedTreatment){
                     Log.d(TAG,"Enabling COPPA support.");
                     // builder.tagForChildDirectedTreatment(true);
                     requestConfigurationBuilder.setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G);
+                    requestConfigurationBuilder.setTagForChildDirectedTreatment(RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE);
 
                 }
                 RequestConfiguration requestConfiguration = requestConfigurationBuilder.build();
@@ -523,9 +497,10 @@ public class Firebase extends Extension {
         Log.d("Firebase","Show Interstitial: Begins");
         if(loadingInterstitial) return false;
         if(failInterstitial){
-            mainActivity.runOnUiThread(new Runnable() {
-                public void run() { getInstance().reloadInterstitial();}
-            }); 
+            // mainActivity.runOnUiThread(new Runnable() {
+            //     public void run() { getInstance().reloadInterstitial();}
+            // }); 
+            getInstance().reloadInterstitial();
             Log.d(TAG,"Show Interstitial: Interstitial not loaded... reloading.");
             return false;
         }
@@ -536,11 +511,6 @@ public class Firebase extends Extension {
         }
         mainActivity.runOnUiThread(new Runnable() {
             public void run() { 
-                // if(!getInstance().interstitial.isLoaded()){
-                //     reportInterstitialEvent(Firebase.FAILED);
-                //     Log.d(TAG,"Show Interstitial: Not loaded (THIS SHOULD NEVER BE THE CASE HERE!)... ignoring.");
-                //     return;
-                // }
                 getInstance().interstitial.show(mainActivity);
             }
         });
@@ -575,9 +545,12 @@ public class Firebase extends Extension {
         if(bannerId=="") return;
         mustBeShowingBanner=false;
         Log.d(TAG,"Hide Banner");
-        mainActivity.runOnUiThread(new Runnable() {
-            public void run() { getInstance().banner.setVisibility(View.INVISIBLE); }
-        });
+        if (getInstance().banner != null ) {
+            mainActivity.runOnUiThread(new Runnable() {
+                public void run() { getInstance().banner.setVisibility(View.INVISIBLE); }
+            });
+        }
+        
     }
 
     public static void onResize(){
@@ -631,14 +604,16 @@ public class Firebase extends Extension {
         reloadBanner();
     }
 
-    private void reloadInterstitial(){
+    public void reloadInterstitial(){
         if(interstitialId==null) return;
         if(loadingInterstitial) return;
         Log.d(TAG,"Reload Interstitial");
         reportInterstitialEvent(Firebase.LOADING);
         loadingInterstitial=true;
-        // interstitial.loadAd(adReq);
-        InterstitialAd.load(mainActivity, interstitialId, new AdRequest.Builder().build(), new InterstitialAdLoadCallback() {
+        failInterstitial=false;
+        mainActivity.runOnUiThread(new Runnable() {
+                public void run() { 
+                    InterstitialAd.load(mainActivity, interstitialId, Firebase.getInstance().adReq, new InterstitialAdLoadCallback() {
                  @Override
                  public void onAdLoaded(@NonNull InterstitialAd ad) {
                     Firebase.getInstance().loadingInterstitial=false;
@@ -655,60 +630,59 @@ public class Firebase extends Extension {
                     Log.d(TAG,"Fail to get Interstitial: "+adError.toString());
                  }
              });
-        failInterstitial=false;
+                }
+        }); 
+        
+        
     }
 
     private void reloadBanner(){
         if(bannerId==null) return;
         if(loadingBanner) return;
+        if (adReq == null) return;
         Log.d(TAG,"Reload Banner");
         loadingBanner=true;
-        banner.loadAd(adReq);
         failBanner=false;
+        mainActivity.runOnUiThread(new Runnable() {
+            public void run() { 
+                banner.loadAd(Firebase.getInstance().adReq);
+            }
+        });
     }
 
     public void createAndLoadRewardedAd() {
-    	// rewardedAd = RewardedAd.load(mainContext, rewardedId);
-        RewardedAdLoadCallback adLoadCallback = new RewardedAdLoadCallback() {
-            @Override
-            public void onAdLoaded(RewardedAd adT) {
-                // Ad successfully loaded.
-                isRewardedAvailable = true;
-                Log.d(TAG, "onRewardedAdLoaded:Received rewarded ad");
-                rewardedAd = adT;
-            }
+        mainActivity.runOnUiThread(new Runnable() {
+            public void run() { 
+                RewardedAdLoadCallback adLoadCallback = new RewardedAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(RewardedAd adT) {
+                        // Ad successfully loaded.
+                        isRewardedAvailable = true;
+                        Log.d(TAG, "onRewardedAdLoaded:Received rewarded ad");
+                        rewardedAd = adT;
+                    }
 
-            @Override
-            public void onAdFailedToLoad(LoadAdError adError) {
-                // Ad failed to load.
-                isRewardedAvailable = false;
-                Log.d(TAG, "onRewardedAdFailedToLoad " + adError.toString());
-                Firebase.getInstance().createAndLoadRewardedAd();
+                    @Override
+                    public void onAdFailedToLoad(LoadAdError adError) {
+                        // Ad failed to load.
+                        isRewardedAvailable = false;
+                        Log.d(TAG, "onRewardedAdFailedToLoad " + adError.toString());
+                        Firebase.getInstance().createAndLoadRewardedAd();
+                    }
+                };
+                RewardedAd.load(mainActivity, "adunitid", Firebase.getInstance().adReq, adLoadCallback);
             }
-        };
-        RewardedAd.load(mainActivity, "adunitid", new AdRequest.Builder().build(), adLoadCallback);
-        // return rewardedAd;
+        });
     }
 
 
-    public static void showRewarded() {
+    public static void showRewarded()
+    {
     	Log.d(TAG, "Calling rewarded video.");
     	mainActivity.runOnUiThread(new Runnable() {
     		public void run() { 
 		        if (isRewardedAvailable==true) {
 		            OnUserEarnedRewardListener adCallback = new OnUserEarnedRewardListener() {
-		                // @Override
-		                // public void onRewardedAdOpened() {
-		                //     // Ad opened.
-		                //     Log.d(TAG, "onRewardedAdOpened");
-		                // }
-
-		                // @Override
-		                // public void onRewardedAdClosed() {
-		                //     // Ad closed.
-		                //     Firebase.getInstance().createAndLoadRewardedAd();
-		                //     Log.d(TAG, "onRewardedAdClosed");
-		                // }
 
 		                @Override
 		                public void onUserEarnedReward(@NonNull RewardItem reward) {
@@ -717,13 +691,6 @@ public class Firebase extends Extension {
 		                    Toast.makeText(mainContext, "onRewarded! currency: " + reward.getType() + "  amount: " +reward.getAmount(), Toast.LENGTH_SHORT).show();
 		                    Log.d(TAG, "onUserEarnedReward");
 		                }
-
-		                // @Override
-		                // public void onRewardedAdFailedToShow(int errorCode) {
-		                //     // Ad failed to display.
-		                //     Log.d(TAG, "onRewardedAdFailedToShow");
-		                //     Firebase.getInstance().createAndLoadRewardedAd();
-		                // }
 		            };
 		            getInstance().rewardedAd.show(mainActivity, adCallback);
 		            Log.d(TAG, "Showing rewarded video.");
