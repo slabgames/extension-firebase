@@ -32,6 +32,8 @@ import com.google.android.gms.ads.OnUserEarnedRewardListener;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 // import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 import com.google.android.gms.ads.rewarded.RewardItem;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.google.android.gms.ads.initialization.InitializationStatus;
 
 // import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 // import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
@@ -230,8 +232,8 @@ public class Firebase extends Extension {
         Log.d(TAG, "Firebase extension onCreate ");
 
         
-        //mainActivity.runOnUiThread(new Runnable() {
-        //    public void run() { 
+        // mainActivity.runOnUiThread(new Runnable() {
+        //     public void run() { 
 
 
                 try {
@@ -241,6 +243,8 @@ public class Firebase extends Extension {
 	                FirebaseApp.initializeApp(mainContext);
 	                mFirebaseAnalytics = FirebaseAnalytics.getInstance(mainApp);
 	                //MobileAds.initialize(mainContext,bundle.getString("com.google.android.gms.ads.APPLICATION_ID"));
+                    
+
                 
 
 
@@ -254,8 +258,8 @@ public class Firebase extends Extension {
                 
                 
                 
-        //     }
-        //}); 
+             // }
+        // }); 
         
         
 
@@ -397,8 +401,8 @@ public class Firebase extends Extension {
     }
 
     public static void init(final String bannerId, final String interstitialId, final String rewardedId, String gravityMode, final boolean testingAds, final boolean tagForChildDirectedTreatment, HaxeObject callback){
-        Firebase.bannerId=bannerId;
         Firebase.interstitialId=interstitialId;
+        Firebase.bannerId = bannerId;
         Firebase.rewardedId = rewardedId;
         Firebase.testingAds=testingAds;
         Firebase.callback=callback;
@@ -406,54 +410,57 @@ public class Firebase extends Extension {
         if(gravityMode.equals("TOP")){
             Firebase.gravity=Gravity.TOP | Gravity.CENTER_HORIZONTAL;
         }
+        
         mainActivity.runOnUiThread(new Runnable() {
             public void run() { 
-                Firebase.getInstance();
-
-                AdRequest.Builder builder = new AdRequest.Builder();
-                RequestConfiguration.Builder requestConfigurationBuilder = MobileAds.getRequestConfiguration().toBuilder();
-                    // .setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G)
-                    // .build();
                 
-                // builder.addTestDevice(AdRequest.DEVICE_ID_EMULATOR);
+                Firebase.getInstance();
+                
+                MobileAds.initialize(mainActivity, new OnInitializationCompleteListener() {
+                        @Override
+                        public void onInitializationComplete(InitializationStatus initializationStatus) {
+                            RequestConfiguration.Builder requestConfigurationBuilder = MobileAds.getRequestConfiguration().toBuilder();
 
-                if(testingAds){
-                            String android_id = Secure.getString(mainActivity.getContentResolver(), Secure.ANDROID_ID);
-                            String deviceId = md5(android_id).toUpperCase();
-                            Log.d(TAG,"DEVICE ID: "+deviceId);
-                            // builder.addTestDevice(deviceId);
-                            List<String> devicesIds = Arrays.asList(deviceId);
-                            requestConfigurationBuilder.setTestDeviceIds(devicesIds);
+                            if(testingAds){
+                                        String android_id = Secure.getString(mainActivity.getContentResolver(), Secure.ANDROID_ID);
+                                        String deviceId = md5(android_id).toUpperCase();
+                                        Log.d(TAG,"DEVICE ID: "+deviceId);
+                                        // builder.addTestDevice(deviceId);
+                                        List<String> devicesIds = Arrays.asList(deviceId);
+                                        requestConfigurationBuilder.setTestDeviceIds(devicesIds);
+                                        requestConfigurationBuilder.setTestDeviceIds(Arrays.asList("7FFFF697C37DBA3561C4B17C6BBC34E7"));
+                                    }
 
+                            
+                            if(tagForChildDirectedTreatment){
+                                Log.d(TAG,"Enabling COPPA support.");
+                                requestConfigurationBuilder.setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G);
+                                requestConfigurationBuilder.setTagForChildDirectedTreatment(RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE);
+
+                            }
+                            RequestConfiguration requestConfiguration = requestConfigurationBuilder.build();
+                            MobileAds.setRequestConfiguration(requestConfiguration);
+
+                            if(bannerId!=null ){
+                                Firebase.getInstance().reinitBanner();
+                            }
+
+                            if ( interstitialId != null ){
+                                Firebase.getInstance().initInterstitial();
+                            }
+
+                            if (rewardedId != null) {
+                                Firebase.getInstance().createAndLoadRewardedAd();
+
+                            }
                         }
 
+
+                    });
                 
-                if(tagForChildDirectedTreatment){
-                    Log.d(TAG,"Enabling COPPA support.");
-                    // builder.tagForChildDirectedTreatment(true);
-                    requestConfigurationBuilder.setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G);
-                    requestConfigurationBuilder.setTagForChildDirectedTreatment(RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE);
-
-                }
-                RequestConfiguration requestConfiguration = requestConfigurationBuilder.build();
-                MobileAds.setRequestConfiguration(requestConfiguration);
-                Firebase.getInstance().adReq = builder.build();
-
 
                 
                 
-                if(bannerId!=null ){
-                    Firebase.getInstance().reinitBanner();
-                }
-
-                if ( interstitialId != null ){
-                    Firebase.getInstance().initInterstitial();
-                }
-
-                if (rewardedId != null) {
-                    Firebase.getInstance().createAndLoadRewardedAd();
-
-                }
             }
         }); 
 
@@ -613,7 +620,7 @@ public class Firebase extends Extension {
         failInterstitial=false;
         mainActivity.runOnUiThread(new Runnable() {
                 public void run() { 
-                    InterstitialAd.load(mainActivity, interstitialId, Firebase.getInstance().adReq, new InterstitialAdLoadCallback() {
+                    InterstitialAd.load(mainActivity, interstitialId, new AdRequest.Builder().build(), new InterstitialAdLoadCallback() {
                  @Override
                  public void onAdLoaded(@NonNull InterstitialAd ad) {
                     Firebase.getInstance().loadingInterstitial=false;
@@ -639,13 +646,12 @@ public class Firebase extends Extension {
     private void reloadBanner(){
         if(bannerId==null) return;
         if(loadingBanner) return;
-        if (adReq == null) return;
         Log.d(TAG,"Reload Banner");
         loadingBanner=true;
         failBanner=false;
         mainActivity.runOnUiThread(new Runnable() {
             public void run() { 
-                banner.loadAd(Firebase.getInstance().adReq);
+                banner.loadAd(new AdRequest.Builder().build());
             }
         });
     }
@@ -670,7 +676,7 @@ public class Firebase extends Extension {
                         Firebase.getInstance().createAndLoadRewardedAd();
                     }
                 };
-                RewardedAd.load(mainActivity, "adunitid", Firebase.getInstance().adReq, adLoadCallback);
+                RewardedAd.load(mainActivity, rewardedId, new AdRequest.Builder().build(), adLoadCallback);
             }
         });
     }
