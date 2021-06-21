@@ -440,7 +440,7 @@ public class Firebase extends Extension {
                             }
                             RequestConfiguration requestConfiguration = requestConfigurationBuilder.build();
                             MobileAds.setRequestConfiguration(requestConfiguration);
-
+                             
                             if(bannerId!=null ){
                                 Firebase.getInstance().reinitBanner();
                             }
@@ -499,29 +499,35 @@ public class Firebase extends Extension {
         });
     }
 
-
-
-
-
     public static void showBanner() {
         if(bannerId==null) return;
         mustBeShowingBanner=true;
         if(failBanner){
             mainActivity.runOnUiThread(new Runnable() {
-                public void run() {getInstance().reloadBanner();}
+                public void run() {
+                    if (getInstance()== null) return;
+
+                    getInstance().reloadBanner();}
             });
             return;
         }
         Log.d(TAG,"Show Banner");
         
-        mainActivity.runOnUiThread(new Runnable() {
-            public void run() {
-                getInstance().rl.removeView(getInstance().banner);
-                getInstance().rl.addView(getInstance().banner);
-                getInstance().rl.bringToFront();
-                getInstance().banner.setVisibility(View.VISIBLE);
-            }
-        });
+        if (getInstance() != null ) {
+            mainActivity.runOnUiThread(new Runnable() {
+                public void run() {
+                    getInstance().reshowBanner();
+                }
+            });
+        }
+    }
+
+    public void reshowBanner() {
+        if (rl == null || banner == null) return;
+        rl.removeView(getInstance().banner);
+        rl.addView(getInstance().banner);
+        rl.bringToFront();
+        banner.setVisibility(View.VISIBLE);
     }
 
 
@@ -529,16 +535,22 @@ public class Firebase extends Extension {
         if(bannerId=="") return;
         mustBeShowingBanner=false;
         Log.d(TAG,"Hide Banner");
-        if (getInstance().banner != null ) {
-            mainActivity.runOnUiThread(new Runnable() {
-                public void run() { getInstance().banner.setVisibility(View.INVISIBLE); }
-            });
+        if (getInstance().banner == null ) { 
+            return;
         }
+
+        mainActivity.runOnUiThread(new Runnable() {
+            public void run() { 
+                getInstance().banner.setVisibility(View.INVISIBLE); }
+        });
         
     }
 
     public static void onResize(){
         Log.d(TAG,"On Resize");
+
+        if (getInstance()== null) return;
+
         mainActivity.runOnUiThread(new Runnable() {
             public void run() { 
                 if (Firebase.getInstance().bannerId != null )
@@ -655,6 +667,7 @@ public class Firebase extends Extension {
     private void reloadBanner(){
         if(bannerId==null) return;
         if(loadingBanner) return;
+        if (banner == null) return;
         Log.d(TAG,"Reload Banner");
         loadingBanner=true;
         failBanner=false;
